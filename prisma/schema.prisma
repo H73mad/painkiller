@@ -1,0 +1,101 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+enum QuoteStatus {
+  DRAFT
+  SENT
+  ACCEPTED
+  REJECTED
+}
+
+enum LineItemType {
+  LABOUR
+  MATERIAL
+  OTHER
+}
+
+model User {
+  id           String   @id @default(cuid())
+  name         String
+  businessName String
+  email        String   @unique
+  phone        String?
+  passwordHash String
+  logoUrl      String?
+  accentColor  String?  @default("#0f766e")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  customers Customer[]
+  quotes    Quote[]
+}
+
+model Customer {
+  id        String   @id @default(cuid())
+  userId    String
+  name      String
+  email     String?
+  phone     String?
+  address   String?
+  notes     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  quotes Quote[]
+
+  @@index([userId])
+}
+
+model Quote {
+  id             String      @id @default(cuid())
+  userId         String
+  customerId     String
+  quoteNumber    String
+  title          String
+  status         QuoteStatus @default(DRAFT)
+  issueDate      DateTime    @default(now())
+  expiryDate     DateTime
+  currency       String      @default("GBP")
+  vatRate        Float
+  discountAmount Float
+  notes          String?
+  terms          String?
+  subtotal       Float
+  total          Float
+  publicToken    String      @unique
+  sentAt         DateTime?
+  acceptedAt     DateTime?
+  rejectedAt     DateTime?
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+
+  user      User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  customer  Customer       @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  lineItems QuoteLineItem[]
+
+  @@unique([userId, quoteNumber])
+  @@index([userId, status, createdAt])
+  @@index([customerId])
+}
+
+model QuoteLineItem {
+  id          String       @id @default(cuid())
+  quoteId     String
+  type        LineItemType @default(OTHER)
+  description String
+  quantity    Float
+  unitPrice   Float
+  lineTotal   Float
+  sortOrder   Int          @default(0)
+
+  quote Quote @relation(fields: [quoteId], references: [id], onDelete: Cascade)
+
+  @@index([quoteId, sortOrder])
+}
